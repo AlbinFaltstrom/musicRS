@@ -26,16 +26,28 @@ class MF():
         #Initialize user and item vectors to random values
         self.user_vectors = np.random.normal(size=(np.max(self.users), self.n_latent_factors))
         self.item_vectors = np.random.normal(size=(np.max(self.items), self.n_latent_factors))
+        
+        self.prev_RMSE = 0
+        self.errors = []
 
         for i in range(self.max_passes):
             #Shuffle the training set
             np.random.shuffle(self.training)
+            
+            self.errors = []
             self.SGD()
+            current_RMSE = root_mean_squared_error(self.errors)
+            if i != 0 & self.prev_RMSE - current_RMSE < 0.001: #Check if error converges, within a margin
+                break
+            else:
+                self.prev_RMSE = current_RMSE
 
     def SGD(self):
         for i in self.training:
             u, m = self.training[i]
             error = self.calc_error(u, m)
+            self.errors.append(error)
+
             temp = self.user_vectors
             self.user_vectors[u, :] -= self.step_size * (error * self.item_vectors - self.reg * self.user_vectors[u, :])
             self.item_vectors[m, :] -= self.step_size * (error * temp - self.reg * self.item_vectors[m, :])
