@@ -10,6 +10,10 @@ class MF():
         #Put data into matrix
         self.matrix = sparse.coo_matrix((weights, (users, items))).tocsr()
 
+        #Save number of users and items
+        self.n_users = len(users)
+        self.n_items = len(items)
+
         #Training and test sets (TODO add seed when dividing into sets)
         self.set = [(users[i], items[i]) for i in range(len(users))]
         np.random.shuffle(self.set)
@@ -20,51 +24,58 @@ class MF():
         self.max_passes = 100
         self.step_size = 0.1
         self.reg = 0.01 #Regularization factor
+        self.batch_size = np.floor(len(self.training)*0.1) #batch size of 10%
 
     def train(self, n_latent_factors):
         self.n_latent_factors = n_latent_factors
         #Initialize user and item vectors to random values
-        self.user_vectors = np.random.normal(size=(np.max(self.users), self.n_latent_factors))
-        self.item_vectors = np.random.normal(size=(np.max(self.items), self.n_latent_factors))
-        
+        self.user_vectors = np.random.normal(size=(self.n_users, self.n_latent_factors), scale=1/n_latent_factors)
+        self.item_vectors = np.random.normal(size=(self.n_items, self.n_latent_factors), scale=1/n_latent_factors)
         self.prev_RMSE = 0
-        self.errors = []
 
         for i in range(self.max_passes):
             #Shuffle the training set
             np.random.shuffle(self.training)
-            
-            self.errors = []
-            self.SGD()
-            current_RMSE = root_mean_squared_error(self.errors)
-            if i != 0 & self.prev_RMSE - current_RMSE < 0.001: #Check if error converges, within a margin
+            batch = self.training[0:(int)(self.batch_size)]
+
+            self.SGD(batch)
+            current_RMSE = self.calc_RMSE()
+            if (i != 0) & (np.abs(self.prev_RMSE - current_RMSE) < 0.001): #Check if error converges, within a margin
                 break
             else:
                 self.prev_RMSE = current_RMSE
 
-    def SGD(self):
-        for i in self.training:
-            u, m = self.training[i]
+    def SGD(self, batch):
+        for i in batch:
+            u, m = i
             error = self.calc_error(u, m)
-            self.errors.append(error)
 
-            temp = self.user_vectors
-            self.user_vectors[u, :] -= self.step_size * (error * self.item_vectors - self.reg * self.user_vectors[u, :])
-            self.item_vectors[m, :] -= self.step_size * (error * temp - self.reg * self.item_vectors[m, :])
+            temp = np.copy(self.user_vectors[u, :])
+            self.user_vectors[u, :] -= self.step_size * (error * self.item_vectors[m, :] + self.reg * self.user_vectors[u, :])
+            self.item_vectors[m, :] -= self.step_size * (error * temp + self.reg * self.item_vectors[m, :])
 
     def calc_error(self, u, m):
-        prediction = np.dot(self.users(u), self.items(m))
+        prediction = self.user_vectors[u, :].dot(self.item_vectors[m, :])
         actual = self.matrix[u, m]
-        return actual - prediction
-    
-    def get_rating(self, user, item):
-        return np.dot(self.user_vectors[user], self.item_vectors[item])
+        return prediction - actual
+
+    def calc_RMSE(self):
+        predictions = []
+        actual = []
+        for i in self.training:
+            u, m = i
+            predictions.append(self.get_rating(u, m))
+            actual.append(self.matrix[u, m])
+        return root_mean_squared_error(actual, predictions)
 
     def evaluate(self):
         predictions = []
         actual = []
         for i in self.test:
-            u, m = self.test[i]
+            u, m = i
             predictions.append(self.get_rating(u, m))
             actual.append(self.matrix[u, m])
         return root_mean_squared_error(actual, predictions)
+    
+    def get_rating(self, user, item):
+        return np.dot(self.user_vectors[user, :], self.item_vectors[item, :])
