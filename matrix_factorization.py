@@ -39,11 +39,13 @@ class MF():
             batch = self.training[0:(int)(self.batch_size)]
 
             self.SGD(batch)
-            current_RMSE = self.calc_RMSE()
-            if (i != 0) & (np.abs(self.prev_RMSE - current_RMSE) < 0.001): #Check if error converges, within a margin
-                break
-            else:
-                self.prev_RMSE = current_RMSE
+            #Every 10th loop, check if error converges (within a margin)
+            if (i%10 == 0):
+                current_RMSE = self.calc_RMSE()
+                if (np.abs(self.prev_RMSE - current_RMSE) < 0.001):
+                    break
+                else:
+                    self.prev_RMSE = current_RMSE
 
     def SGD(self, batch):
         for i in batch:

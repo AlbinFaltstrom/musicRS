@@ -1,7 +1,8 @@
+import csv
 import pandas as pd
 import matrix_factorization as MF
 
-def dataset_1():
+def run_experiment_dataset1(min_lf, max_lf):
     data_frame = pd.read_csv('user_artists_hetrec.dat', delimiter='\t')
 
     #Put data into matrix
@@ -17,14 +18,15 @@ def dataset_1():
     model = MF.MF(users, items, weights)
     result = [] #List of calculated RMSE between model prediction and test set for each number of latent factors
 
-    for i in range(6,7):
+    for i in range(min_lf, max_lf + 1):
         model.train(n_latent_factors=i)
-        result.append([i, model.evaluate()])
+        result.append(model.evaluate())
+        print("Models trained: " + str(i))
 
     return result
 
-def dataset_2():
-    data_frame = pd.read_csv('user_listening_history_kaggle')
+def run_experiment_dataset2(min_lf, max_lf):
+    data_frame = pd.read_csv('kaggle_numbered_10%.csv')
 
     #Put data into matrix
     users = data_frame['user_id'].values
@@ -39,17 +41,21 @@ def dataset_2():
     model = MF.MF(users, items, weights)
     result = [] #List of calculated RMSE between model prediction and test set for each number of latent factors
 
-    for i in range(5,101):
+    for i in range(min_lf, max_lf + 1):
         model.train(n_latent_factors=i)
-        result.append([i, model.evaluate])
+        result.append(model.evaluate())
+        print("Models trained: " + str(i))
 
     return result
 
+def save_result(result, filename):
+    with open(filename, 'w') as file:
+        wr = csv.writer(file)
+        wr.writerow(result)
+
 def main():
-    hetrec_result = dataset_1()
-    print(hetrec_result)
-    print("Dataset 1 done")
-    #kaggle_result = dataset_2()
-    print("All done")
+    save_result(run_experiment_dataset1(5,50), 'hetrec_result.txt')
+    save_result(run_experiment_dataset2(5,50), 'kaggle_result.txt')
+
 if __name__ == "__main__":
     main()
