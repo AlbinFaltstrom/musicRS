@@ -7,6 +7,10 @@ class MF():
 
     def __init__(self, users, items, weights):
 
+        #Save users and items
+        self.users = users
+        self.items = items
+
         #Put data into matrix
         self.matrix = sparse.coo_matrix((weights, (users, items))).tocsr()
 
@@ -81,3 +85,16 @@ class MF():
     
     def get_rating(self, user, item):
         return np.dot(self.user_vectors[user, :], self.item_vectors[item, :])
+    
+    def get_users(self):
+        return self.users
+
+    def get_items(self):
+        return self.items
+
+    #Returns a tuple with all item ids and calculated values for a given user
+    def get_recommendations(self, user):
+        result = []
+        for i in self.items:
+            result.append([i, self.get_rating(user, i)])
+        return result
